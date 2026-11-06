@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>iOS DB Widget Prototype</title>
+<style>
+/* Every pixel on the phone comes from 2× Figma exports (04_Protection · Preview, node 16588-7219), 375×812 @2x.
+   Page shell follows Whoscall Mobile DS (iOS): SF Pro / PingFang, Type Roles, Colors/* semantic tokens (light + dark export values),
+   Spacing scale (4/8/12/16/20/24/32), Radius scale (12/16/20/round), iOS 18 Segmented Control, Chips, Pill Button, Toast. */
+:root{
+  --bg-default:#f6f5f5;            /* Colors/Background/Default */
+  --surface:#ffffff;               /* Colors/Surface/Default */
+  --surface-l2:#e7e6e6;            /* Colors/Surface/Light 2 */
+  --text-1:rgba(38,38,38,.85);     /* Colors/Text/Primary */
+  --text-2:rgba(38,38,38,.6);      /* Colors/Text/Secondary */
+  --text-3:rgba(38,38,38,.4);      /* Colors/Text/Passive */
+  --content-1:rgba(38,38,38,.85);  /* Colors/Content/Primary */
+  --on-content-1:#ffffff;          /* Colors/Content/Pure Bright */
+  --divider:rgba(38,38,38,.08);    /* Colors/Content/Divider */
+  --pressed:rgba(38,38,38,.08);    /* Colors/Content/Pressed */
+  --seg-track:rgba(38,38,38,.08);  /* Colors/Surface/LightOP (iOS 18 segmented track) */
+  --seg-tile:#ffffff;
+  --accent:#0cd25f;                /* Colors/Core/Accent */
+  --accent-text:#078e40;           /* Colors/Text/Accent Variant */
+  --neg:#ff2e4d;                   /* Colors/Safety/Negative */
+  --neg-light:#fff0f2;             /* Colors/Safety/Negative Light */
+  --safe-light:#edfff3;            /* Colors/Safety/Safe Light */
+  --unknown:#b1afaf;               /* Colors/Safety/Unknown */
+  --unknown-light:#f6f5f5;         /* Colors/Safety/Unknown Light */
+  --premium:#b031ec;               /* Colors/Premium/Premium Purple */
+  --premium-pale:#f7e8ff;          /* Colors/Premium/Premium Pale Purple */
+  --device:#262626;                /* Colors/Content/Pure Dark */
+  --primary-bg:#434242; --primary-pressed:#262626; --on-primary:#ffffff;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg-default:#3d3c3c; --surface:#262626; --surface-l2:#434242;
+  --text-1:rgba(246,245,245,.9); --text-2:rgba(246,245,245,.6); --text-3:rgba(246,245,245,.4);
+  --content-1:rgba(246,245,245,.9); --on-content-1:#262626; --divider:rgba(246,245,245,.08); --pressed:rgba(246,245,245,.08);
+  --seg-track:rgba(246,245,245,.08); --seg-tile:#434242;
+  --accent-text:#d8ffe8; --neg-light:rgba(255,46,77,.16); --safe-light:rgba(12,210,95,.16); --unknown-light:rgba(246,245,245,.08);
+  --premium-pale:rgba(176,49,236,.2); --device:#111111;
+  --primary-bg:rgba(246,245,245,.9); --primary-pressed:rgba(246,245,245,.75); --on-primary:#262626; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg-default:#3d3c3c; --surface:#262626; --surface-l2:#434242;
+  --text-1:rgba(246,245,245,.9); --text-2:rgba(246,245,245,.6); --text-3:rgba(246,245,245,.4);
+  --content-1:rgba(246,245,245,.9); --on-content-1:#262626; --divider:rgba(246,245,245,.08); --pressed:rgba(246,245,245,.08);
+  --seg-track:rgba(246,245,245,.08); --seg-tile:#434242;
+  --accent-text:#d8ffe8; --neg-light:rgba(255,46,77,.16); --safe-light:rgba(12,210,95,.16); --unknown-light:rgba(246,245,245,.08);
+  --premium-pale:rgba(176,49,236,.2); --device:#111111;
+  --primary-bg:rgba(246,245,245,.9); --primary-pressed:rgba(246,245,245,.75); --on-primary:#262626; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg-default);color:var(--text-1);font-family:var(--f-ui);-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 32px 48px;display:flex;flex-direction:column;gap:32px}
+@media (max-width:600px){.wrap{padding:24px 16px 40px;gap:24px}}
+
+/* Header: Display_Sm title + Paragraph_Md lede */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap}
+.htxt{display:flex;flex-direction:column;gap:8px;flex:1 1 420px;min-width:0}
+header #pvopen{flex:none}
+h1{margin:0;font-size:24px;line-height:31px;font-weight:600}
+.lede{margin:0;font-size:14px;line-height:21px;color:var(--text-2);max-width:720px}
+.lede a{color:var(--text-1);font-weight:600}
+
+.vsel{display:flex;flex-direction:column;align-items:center;gap:12px}
+.ctlrow{display:flex;justify-content:center}
+/* Phone centered; detail card in the right gutter on wide screens, below on narrow */
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,340px) minmax(0,1fr);gap:32px;align-items:start}
+.stagecol{grid-column:2}
+.detail{grid-column:3;position:sticky;top:24px;max-width:340px}
+@media (max-width:1000px){.main{display:flex;flex-direction:column;align-items:center;gap:24px}.detail{position:static;width:100%;max-width:560px}}
+
+/* Card: Surface/Default, Radius md 16, padding 16 */
+.card{background:var(--surface);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field[hidden]{display:none}
+.flabel{font-size:11px;line-height:14px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+
+/* Segmented Control (pill, as PH prototype): Surface track r999 p4; Content/Primary tile; Title_Sm 14/600 labels, Passive unselected */
+.seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:4px;border-radius:999px;background:var(--surface);position:relative;max-width:100%}
+.seg button{position:relative;z-index:1;height:32px;padding:0 20px;border:0;background:transparent;border-radius:99px;white-space:nowrap;
+  font-size:14px;line-height:18px;font-weight:600;color:var(--text-3);cursor:pointer;transition:color .2s}
+.seg button[aria-checked="true"]{color:var(--on-content-1)}
+.seg .tile{position:absolute;top:4px;bottom:4px;left:4px;border-radius:99px;background:var(--content-1);transition:transform .25s cubic-bezier(.2,.8,.2,1),width .25s}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Sub control for Premium: Body_Md, 28px */
+.seg.sub button{height:28px;padding:0 14px;font-size:11px;line-height:14px}
+.seg[hidden]{display:none}
+
+/* Horizontal timeline: steps on a rail, status dots use Safety tokens; Body_Md / Body_Sm labels */
+.tl{width:100%;max-width:560px;min-width:0;padding:12px 12px 8px;gap:4px}
+.tlhead{display:flex;align-items:center;justify-content:center;gap:12px;padding:0 4px;position:relative}
+.tlhead .btn{position:absolute;right:4px}
+@media (max-width:600px){.tlhead{justify-content:space-between}.tlhead .btn{position:static}}
+.states{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);margin:0;padding:0;list-style:none}
+.rail{position:absolute;top:22px;height:2px;border-radius:2px;background:var(--divider);pointer-events:none}
+.rail i{display:block;height:100%;width:0;border-radius:2px;background:var(--content-1);transition:width .35s cubic-bezier(.2,.8,.2,1)}
+.srow{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;padding:16px 2px 8px;border:0;border-radius:12px;background:transparent;
+  color:inherit;text-align:center;cursor:pointer;position:relative}
+.srow:hover{background:var(--pressed)}
+.srow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.srow .dot{flex:none;width:12px;height:12px;margin:0 0 4px;border-radius:50%;background:var(--c,var(--unknown));box-shadow:0 0 0 3px var(--surface);transition:transform .25s}
+.srow[aria-current="true"] .dot{transform:scale(1.35);box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--cl,var(--unknown-light))}
+.playing .srow[aria-current="true"] .dot{animation:pulse var(--dur) ease-in-out}
+@keyframes pulse{0%,100%{transform:scale(1.35)}50%{transform:scale(1.6)}}
+.srow .t1{font-size:11px;line-height:14px;font-weight:600;color:var(--text-2)}
+.srow .t2{font-size:11px;line-height:14px;color:var(--text-3)}
+.srow[aria-current="true"] .t1{color:var(--text-1)}
+.srow[aria-current="true"] .t2{color:var(--ct,var(--text-2));font-weight:600}
+/* Pill Button · Small: height 32, Body_Md */
+.btn.sm{height:32px;padding:0 12px;font-size:11px;line-height:14px;gap:4px}
+.btn.sm svg{width:16px;height:16px}
+
+/* Pill Buttons · Large: height 48, Title_Sm */
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{height:48px;padding:0 24px;border:0;border-radius:999px;font-size:14px;line-height:18px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn svg{width:20px;height:20px}
+.btn.primary{background:var(--primary-bg);color:var(--on-primary)}
+.btn.primary:active{background:var(--primary-pressed)}
+.btn.secondary{background:var(--bg-default);color:var(--text-1)}
+.btn.secondary:active{background:var(--surface-l2)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Detail card for the current state */
+.detail{gap:12px}
+.chiprow{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:11px;line-height:14px;font-weight:600;
+  background:var(--cl,var(--unknown-light));color:var(--ct,var(--text-1))}
+.detail h2{margin:0;font-size:17px;line-height:22px;font-weight:600}
+.detail dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;line-height:18px}
+.detail dt{color:var(--text-2)}
+.detail dd{margin:0}
+.note{font-size:11px;line-height:17px;color:var(--text-2)}
+.note:empty{display:none}
+
+/* Phone: frames are 375×812; device bezel uses Content/Pure Dark */
+.stagecol{display:flex;flex-direction:column;align-items:center;gap:16px;min-width:0;width:100%}
+.device{width:100%;max-width:340px;padding:10px;border-radius:52px;background:var(--device);box-shadow:0 20px 40px rgba(38,38,38,.16)}
+.screen{position:relative;width:100%;aspect-ratio:375/812;border-radius:42px;overflow:hidden;background:#d9d9d9}
+.screen img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s ease;user-select:none;-webkit-user-drag:none}
+.screen img.on{opacity:1}
+@media (min-width:861px){.device{max-width:clamp(260px,calc((100vh - 120px) * .4618 + 20px),340px)}}
+.hint{font-size:11px;line-height:14px;color:var(--text-3);text-align:center}
+@media (prefers-reduced-motion:reduce){.screen img,.seg .tile,.rail i,.srow .dot{transition:none}.playing .srow[aria-current="true"] .dot{animation:none}}
+
+/* ---------- Mobile preview: one frame, scaled to fit (contain), letterboxed ---------- */
+html.pvon,html.pvon body{overflow:hidden}
+.pv{position:fixed;inset:0;z-index:50;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:contain}
+.pv[hidden]{display:none}
+.pvbox{position:relative;overflow:hidden;flex:none;background:#000}
+.pvbox img{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .35s ease;-webkit-user-drag:none;pointer-events:none}
+.pvbox img.on{opacity:1}
+/* Toast: Content/Pure Dark pill, Body_Lg */
+.toast{position:absolute;left:50%;top:calc(56px + env(safe-area-inset-top,0px));transform:translate(-50%,-8px);background:#262626;color:#fff;font:400 14px/18px var(--f-ui);
+  padding:12px 20px;border-radius:999px;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:2}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+/* Exit control for mouse/trackpad viewers only; touch uses the long-press sheet or system back */
+.pvclose{display:none;position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:0;padding:0;background:#fff;color:rgba(38,38,38,.85);
+  box-shadow:0 2px 8px rgba(38,38,38,.16);cursor:pointer;place-items:center;z-index:1}
+.pvclose svg{width:24px;height:24px}
+.pvclose:hover{background:#e7e6e6}
+@media (hover:hover) and (pointer:fine){.pvclose{display:grid}}
+.pv.sheeton .pvclose{visibility:hidden}
+/* Sheet · General (iOS): Background/Mask scrim, white body, top radius 34 / bottom 58 floating, grabber */
+.sw{position:absolute;inset:0;visibility:hidden;transition:visibility 0s .25s;z-index:3}
+.pv.sheeton .sw{visibility:visible;transition-delay:0s}
+.scrim{position:absolute;inset:0;background:rgba(38,38,38,.6);opacity:0;transition:opacity .25s}
+.pv.sheeton .scrim{opacity:1}
+.sheet{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:440px;max-height:calc(100% - 64px);overflow:auto;
+  background:#fff;color:rgba(38,38,38,.85);border-radius:34px 34px 58px 58px;padding:20px 16px 24px;
+  box-shadow:0 -10px 20px rgba(38,38,38,.04),0 -2px 4px rgba(38,38,38,.04);transform:translateY(110%);transition:transform .25s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;gap:12px;color-scheme:light}
+.pv.sheeton .sheet{transform:none}
+.grab{width:36px;height:5px;border-radius:3px;background:#cccccc;align-self:center;margin-top:-10px}
+.sheet h3{margin:0;padding:0 8px;font-size:17px;line-height:22px;font-weight:600;text-align:center}
+/* Chips: 32px, round, Divider outline; selected Content/Primary fill + Pure Bright label; Title_Sm */
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.chipbtn{height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(38,38,38,.08);background:#fff;color:rgba(38,38,38,.85);font-size:14px;line-height:18px;font-weight:600;cursor:pointer}
+.chipbtn[aria-checked="true"]{background:rgba(38,38,38,.85);border-color:transparent;color:#fff}
+.acts{display:flex;flex-direction:column;gap:4px}
+.act{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:6px 8px;border:0;background:transparent;border-radius:12px;
+  font:400 14px/18px var(--f-ui);color:rgba(38,38,38,.85);text-align:left;cursor:pointer}
+.act:active{background:rgba(38,38,38,.08)}
+.act:focus-visible{outline:2px solid #0cd25f;outline-offset:-2px}
+.act .dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--c)}
+.act .lbl{flex:1;min-width:0;display:flex;flex-direction:column}
+.act .lbl b{font-weight:600}
+.act .lbl small{font-size:11px;line-height:14px;color:rgba(38,38,38,.6)}
+.act svg{width:20px;height:20px;flex:none;color:#078e40;visibility:hidden}
+.act[aria-checked="true"] svg{visibility:visible}
+.sdiv{height:1px;background:rgba(38,38,38,.08);margin:0 8px}
+.act.exit{justify-content:center;font-weight:600;min-height:44px}
+@media (prefers-reduced-motion:reduce){.sheet,.scrim,.toast,.pvbox img{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="htxt">
+      <h1>iOS DB Widget · state prototype</h1>
+      <p class="lede">How the Whoscall home-screen widget changes as the offline DB ages, for Free and Premium users. Screens are 2× exports from Figma; see the
+        <a href="https://www.figma.com/board/DdqiSdzSUiuwZZ9EzSGznK/-Free---Ads--Spuad-Board?node-id=3921-9116&amp;t=y65CLCD3mNHh5CwC-4" target="_blank" rel="noopener">widget proposal on FigJam</a>.</p>
+    </div>
+    <button class="btn primary" id="pvopen" type="button">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 15h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Mobile preview</button>
+  </header>
+
+  <!-- Track selector: centered segmented controls (no card) -->
+  <div class="vsel">
+    <div class="seg" role="radiogroup" aria-label="User" id="seg-user">
+      <span class="tile" aria-hidden="true"></span>
+      <button role="radio" data-val="free">Free user</button>
+      <button role="radio" data-val="prem">Premium user</button>
+    </div>
+    <div class="seg sub" role="radiogroup" aria-label="DB update" id="seg-mode">
+      <span class="tile" aria-hidden="true"></span>
+      <button role="radio" data-val="manual">Manual update</button>
+      <button role="radio" data-val="auto">Auto update</button>
+    </div>
+  </div>
+
+  <!-- Mobile preview sits left of the timeline; the row is centered -->
+  <div class="ctlrow">
+    <section class="card tl" aria-label="DB status timeline">
+      <div class="tlhead">
+        <span class="flabel">DB status · time passes →</span>
+        <button class="btn secondary sm" id="play" type="button" aria-pressed="false">
+          <svg viewBox="0 0 20 20" aria-hidden="true" id="playico"><path d="M6 4.5v11l9-5.5z" fill="currentColor"/></svg>
+          <span id="playlbl">Play</span></button>
+      </div>
+      <ul class="states" id="states"></ul>
+    </section>
+  </div>
+
+  <div class="main">
+    <div class="stagecol">
+      <div class="device"><div class="screen" id="screen"></div></div>
+      <p class="hint">← → to step through states</p>
+    </div>
+    <section class="card detail" aria-live="polite">
+      <div class="chiprow" id="d-chips"></div>
+      <h2 id="d-title"></h2>
+      <dl>
+        <dt>Condition</dt><dd id="d-cond"></dd>
+        <dt>Small widget</dt><dd id="d-small"></dd>
+        <dt>Medium widget</dt><dd id="d-med"></dd>
+      </dl>
+      <p class="note" id="d-note"></p>
+    </section>
+  </div>
+</div>
+
+<div class="pv" id="pv" hidden role="dialog" aria-modal="true" aria-label="Mobile preview">
+  <div class="pvbox" id="pvbox"></div>
+  <button class="pvclose" id="pvclose" type="button" aria-label="Exit preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <div class="toast" id="pvtoast" role="status" aria-live="polite"></div>
+  <div class="sw">
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" role="menu" aria-label="Switch state">
+      <span class="grab" aria-hidden="true"></span>
+      <h3>Switch widget state</h3>
+      <div class="chips" role="radiogroup" aria-label="User track" id="pvtracks"></div>
+      <div class="acts" id="pvacts"></div>
+      <div class="sdiv" role="separator"></div>
+      <button class="act exit" role="menuitem" id="pvexit">Exit preview</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const A='assets/';
+/* Tracks follow the Figma rows; order = time passing (Up-to-date → … → Extension off). */
+const C={safe:['#0cd25f','var(--safe-light)','var(--accent-text)'],warn:['#ff2e4d','var(--neg-light)','#ff2e4d'],risk:['#f31132','var(--neg-light)','#f31132'],
+         off:['#b1afaf','var(--unknown-light)','var(--text-2)'],prem:['#b031ec','var(--premium-pale)','#b031ec']};
+const TRACKS={
+  free:{label:'Free',chip:'Free',states:[
+    {id:'fresh',img:'free_fresh',tone:'safe',title:'Up-to-date',cond:'DB up to date',small:'“Guarding you with latest data!”',med:'Up-to-date · Guarding 2 days · All data 122,342'},
+    {id:'d7',img:'free_d7',tone:'warn',title:'Outdated',cond:'DB ≥ 7 days',small:'“Hey, time to update data!”',med:'Outdated · Guarding 8 days · Data missed −6,382'},
+    {id:'d8',img:'free_d8',tone:'warn',title:'High Risk',cond:'DB 8–14 days',small:'“Please update data now!”',med:'High Risk · Guarding 8 days · Data missed −12,384'},
+    {id:'d15',img:'free_d15',tone:'risk',title:'High Risk',cond:'DB ≥ 15 days',small:'“Oh, need to update data!”',med:'High Risk · Guarding 0 days · Data missed −22,384'},
+    {id:'off',img:'free_off',tone:'off',title:'Disabled',cond:'Caller ID extension off',small:'“Enable your Caller ID”',med:'Disabled · No identification for 7 days'}]},
+  prem:{label:'Premium · Manual update',chip:'Premium',states:[
+    {id:'fresh',img:'prem_fresh',tone:'prem',title:'Up-to-date',cond:'DB up to date',small:'“Guarding you with latest data!”',med:'Up-to-date · Guarding 2 days · Data 122,342'},
+    {id:'d7',img:'prem_d7',tone:'warn',title:'Outdated',cond:'DB ≥ 7 days',small:'“Hey, time to update data!”',med:'Outdated · Guarding 8 days · Data missed −6,382',note:'The Figma frame for this state is identical to Free · DB ≥ 7 days.'},
+    {id:'d14',img:'prem_d14',tone:'warn',title:'High Risk',cond:'DB ≥ 14 days',small:'“Please update data now!”',med:'High Risk · Guarding 8 days · Data missed −12,384',note:'The Figma frame for this state is identical to Free · DB 8–14 days.'},
+    {id:'d21',img:'prem_d21',tone:'risk',title:'High Risk',cond:'DB ≥ 21 days',small:'“Oh, need to update data!”',med:'High Risk · Guarding 0 days · Data missed −22,384'},
+    {id:'off',img:'prem_off',tone:'off',title:'Disabled',cond:'Caller ID extension off',small:'“Enable your Caller ID”',med:'Disabled · No identification for 7 days'}]},
+  auto:{label:'Premium · Auto update',chip:'Premium Auto',states:[
+    {id:'ok',img:'auto_ok',tone:'prem',title:'Auto-updating',cond:'Auto-update success',small:'“Guarding you with latest data!”',med:'Auto-updating · All data 457,877 · This week 6,382 new data'},
+    {id:'off',img:'auto_off',tone:'off',title:'Disabled',cond:'Caller ID extension off',small:'“Enable your Caller ID”',med:'Disabled · No identification for 7 days'}]}
+};
+const DUR=2200, reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let track='free', idx=0, playing=false, playT=0;
+const $=id=>document.getElementById(id);
+const cur=()=>TRACKS[track].states[idx];
+
+/* Two stacked <img> per screen, crossfaded */
+function makeScreen(el){ const a=new Image(), b=new Image(); [a,b].forEach(i=>{i.alt='';i.draggable=false;el.appendChild(i);}); return {el,imgs:[a,b],front:0}; }
+const S1=makeScreen($('screen')), S2=makeScreen($('pvbox'));
+function show(scr,src,alt){ const f=scr.imgs[scr.front]; if(f.dataset.src===src) return;
+  const n=scr.imgs[1-scr.front]; n.alt=alt; n.dataset.src=src;
+  const go=()=>{ n.classList.add('on'); f.classList.remove('on'); scr.front=1-scr.front; };
+  n.src=src; (n.decode?n.decode().catch(()=>{}):Promise.resolve()).then(go); }
+
+/* iOS 18 segmented control */
+function segSet(seg,val){ const bs=[...seg.querySelectorAll('button')]; let i=0;
+  bs.forEach((b,k)=>{ const on=b.dataset.val===val; b.setAttribute('aria-checked',on); b.tabIndex=on?0:-1; if(on) i=k; });
+  const t=seg.querySelector('.tile'), w=bs[0].offsetWidth; t.style.width=w+'px'; t.style.transform=`translateX(${i*w}px)`; }
+function segWire(seg,fn){ seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>fn(b.dataset.val)));
+  seg.addEventListener('keydown',e=>{ if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight') return; e.preventDefault(); e.stopPropagation();
+    const bs=[...seg.querySelectorAll('button')], k=bs.findIndex(b=>b.getAttribute('aria-checked')==='true');
+    const n=bs[(k+(e.key==='ArrowRight'?1:-1)+bs.length)%bs.length]; fn(n.dataset.val); n.focus(); }); }
+segWire($('seg-user'),v=>{ stop(); setTrack(v==='free'?'free':(track==='auto'?'auto':'prem'),0,true); });
+segWire($('seg-mode'),v=>{ stop(); setTrack(v==='auto'?'auto':'prem',0,true); });
+
+const SHORT={'DB up to date':'Up to date','Caller ID extension off':'Extension off','Auto-update success':'Auto-updated'};
+const short=s=>SHORT[s.cond]||s.cond.replace(/^DB /,'');
+function renderList(){ const ul=$('states'); ul.innerHTML=''; const st=TRACKS[track].states, n=st.length;
+  const rail=document.createElement('li'); rail.className='rail'; rail.setAttribute('aria-hidden','true'); rail.innerHTML='<i></i>';
+  rail.style.left=rail.style.right=`calc(100% / ${2*n})`; ul.appendChild(rail);
+  st.forEach((s,i)=>{ const li=document.createElement('li'), b=document.createElement('button'); const c=C[s.tone];
+    b.className='srow'; b.style.setProperty('--c',c[0]); b.style.setProperty('--cl',c[1]); b.style.setProperty('--ct',c[2]); b.style.setProperty('--dur',DUR+'ms');
+    b.innerHTML=`<span class="dot"></span><span class="t1"></span><span class="t2"></span>`;
+    b.querySelector('.t1').textContent=short(s); b.querySelector('.t2').textContent=s.title; b.setAttribute('aria-label',`${s.cond} · ${s.title}`);
+    b.addEventListener('click',()=>{ stop(); setState(i,true); }); li.appendChild(b); ul.appendChild(li); }); }
+
+function render(){ const s=cur(), t=TRACKS[track], c=C[s.tone];
+  segSet($('seg-user'),track==='free'?'free':'prem'); $('seg-mode').hidden=track==='free'; if(track!=='free') segSet($('seg-mode'),track==='auto'?'auto':'manual');
+  document.querySelectorAll('#states .srow').forEach((b,i)=>{ b.setAttribute('aria-current',String(i===idx));
+    const d=b.querySelector('.dot'); d.style.animation='none'; void d.offsetWidth; d.style.animation=''; });
+  const n=t.states.length; $('states').querySelector('.rail i').style.width=(n>1?idx/(n-1)*100:0)+'%';
+  const alt=`${t.label} · ${s.cond} · ${s.title}`; show(S1,A+s.img+'.png',alt); show(S2,A+s.img+'.png',alt);
+  $('d-chips').innerHTML=''; [[t.label,'var(--unknown-light)','var(--text-1)'],[s.title,c[1],c[2]]].forEach(([txt,bg,fg])=>{ const sp=document.createElement('span'); sp.className='chip'; sp.textContent=txt; sp.style.setProperty('--cl',bg); sp.style.setProperty('--ct',fg); $('d-chips').appendChild(sp); });
+  $('d-title').textContent=s.title; $('d-cond').textContent=s.cond; $('d-small').textContent=s.small; $('d-med').textContent=s.med; $('d-note').textContent=s.note||'';
+  syncHash(); }
+function setTrack(t,i=0,push){ track=t; idx=Math.min(i,TRACKS[t].states.length-1); renderList(); render(); }
+function setState(i){ idx=(i+TRACKS[track].states.length)%TRACKS[track].states.length; render(); }
+
+/* Timeline auto-play */
+function tick(){ setState(idx+1); playT=setTimeout(tick,DUR); }
+function play(){ if(playing) return; playing=true; document.body.classList.add('playing'); $('play').setAttribute('aria-pressed','true'); $('playlbl').textContent='Pause';
+  $('playico').innerHTML='<path d="M6 4.5h3v11H6zM11 4.5h3v11h-3z" fill="currentColor"/>'; render(); playT=setTimeout(tick,DUR); }
+function stop(){ if(!playing) return; playing=false; clearTimeout(playT); document.body.classList.remove('playing'); $('play').setAttribute('aria-pressed','false'); $('playlbl').textContent='Play';
+  $('playico').innerHTML='<path d="M6 4.5v11l9-5.5z" fill="currentColor"/>'; }
+$('play').addEventListener('click',()=>playing?stop():play());
+
+document.addEventListener('keydown',e=>{ if(pvOn&&sheetOn) return; if(e.target.closest&&e.target.closest('.seg')) return;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'&&pvOn){ e.preventDefault(); stop(); setState(idx+1); }
+  else if(e.key==='ArrowLeft'||e.key==='ArrowUp'&&pvOn){ e.preventDefault(); stop(); setState(idx-1); } });
+
+/* ---------- Mobile preview ----------
+   Hash: #<track>/<state> for the page, #pv/<track>/<state> while previewing (shareable; opens straight into the preview).
+   Long-press (500 ms, <10 px movement) opens the sheet to switch user/state or exit. Swipe left/right steps through states. */
+const pv=$('pv'), pvbox=$('pvbox'), pvtoast=$('pvtoast');
+let pvOn=false, sheetOn=false, scrimArmed=false, lp=null, toastT=0, sw=null;
+function pvFit(){ if(!pvOn) return; const s=Math.min(pv.clientWidth/375,pv.clientHeight/812); pvbox.style.width=375*s+'px'; pvbox.style.height=812*s+'px'; }
+new ResizeObserver(pvFit).observe(pv);
+function syncHash(){ const h=(pvOn?'#pv/':'#')+track+'/'+cur().id; try{ if(location.hash!==h) history.replaceState(null,'',h); }catch(e){} }
+const FINE=matchMedia('(hover:hover) and (pointer:fine)').matches;
+function showToast(msg){ pvtoast.textContent=msg; pvtoast.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>pvtoast.classList.remove('show'),2800); }
+function openPv({fs=true}={}){ const was=pvOn; pvOn=true; pv.hidden=false; document.documentElement.classList.add('pvon'); pvFit(); render();
+  if(!was){ showToast(FINE?'Long-press to switch · ← → to step · Esc to exit':'Long-press to switch · swipe to step');
+    if(fs&&pv.requestFullscreen&&matchMedia('(pointer:coarse)').matches) pv.requestFullscreen({navigationUI:'hide'}).catch(()=>{}); } }
+function closePv(){ if(!pvOn) return; closeSheet(); pvOn=false; pv.hidden=true; document.documentElement.classList.remove('pvon'); pvtoast.classList.remove('show');
+  if(document.fullscreenElement&&document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  syncHash(); $('pvopen').focus({preventScroll:true}); }
+$('pvopen').addEventListener('click',()=>openPv());
+$('pvclose').addEventListener('click',closePv);
+$('pvexit').addEventListener('click',closePv);
+
+let sheetTrack='free';
+const CHECK='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function renderSheet(){ const tr=$('pvtracks'), ac=$('pvacts'); tr.innerHTML=''; ac.innerHTML='';
+  Object.entries(TRACKS).forEach(([k,t])=>{ const b=document.createElement('button'); b.className='chipbtn'; b.setAttribute('role','radio'); b.textContent=t.chip;
+    b.setAttribute('aria-checked',String(k===sheetTrack)); b.addEventListener('click',()=>{ sheetTrack=k; renderSheet(); }); tr.appendChild(b); });
+  TRACKS[sheetTrack].states.forEach((s,i)=>{ const b=document.createElement('button'); b.className='act'; b.setAttribute('role','menuitemradio');
+    b.style.setProperty('--c',C[s.tone][0]); const on=sheetTrack===track&&i===idx; b.setAttribute('aria-checked',String(on));
+    b.innerHTML=`<span class="dot"></span><span class="lbl"><b></b><small></small></span>${CHECK}`; b.querySelector('b').textContent=s.cond; b.querySelector('small').textContent=s.title;
+    b.addEventListener('click',()=>{ closeSheet(); stop(); if(sheetTrack!==track) setTrack(sheetTrack,i); else setState(i); showToast(`${TRACKS[track].chip} · ${s.cond}`); });
+    ac.appendChild(b); }); }
+function openSheet(){ sheetOn=true; scrimArmed=false; sheetTrack=track; renderSheet(); pv.classList.add('sheeton');
+  (pv.querySelector('.act[aria-checked="true"]')||pv.querySelector('.act')).focus({preventScroll:true}); }
+function closeSheet(){ if(!sheetOn) return; sheetOn=false; pv.classList.remove('sheeton'); }
+const scrim=$('scrim');
+scrim.addEventListener('pointerdown',()=>{ scrimArmed=true; });
+scrim.addEventListener('click',()=>{ if(scrimArmed) closeSheet(); });
+
+pv.addEventListener('pointerdown',e=>{ if(sheetOn||!e.isPrimary) return; clearTimeout(lp&&lp.t);
+  lp={id:e.pointerId,x:e.clientX,y:e.clientY,fired:false}; sw={x:e.clientX,y:e.clientY,t:Date.now()};
+  lp.t=setTimeout(()=>{ lp.fired=true; sw=null; openSheet(); if(navigator.vibrate) navigator.vibrate(12); },500); },true);
+window.addEventListener('pointermove',e=>{ if(!lp||e.pointerId!==lp.id) return;
+  if(lp.fired){ e.stopPropagation(); return; }
+  if(Math.hypot(e.clientX-lp.x,e.clientY-lp.y)>10){ clearTimeout(lp.t); lp=null; } },true);
+window.addEventListener('pointerup',e=>{ if(lp&&e.pointerId===lp.id){ clearTimeout(lp.t); lp=null; }
+  if(pvOn&&!sheetOn&&sw){ const dx=e.clientX-sw.x, dy=e.clientY-sw.y; if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5&&Date.now()-sw.t<800){ stop(); setState(idx+(dx<0?1:-1)); showToast(`${idx+1}/${TRACKS[track].states.length} · ${cur().cond}`); } }
+  sw=null; },true);
+window.addEventListener('pointercancel',e=>{ if(lp&&e.pointerId===lp.id){ clearTimeout(lp.t); lp=null; } sw=null; },true);
+pv.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{ if(!pvOn) return; if(e.key==='Escape'){ e.preventDefault(); sheetOn?closeSheet():closePv(); }
+  else if((e.key==='m'||e.key==='M')&&!sheetOn) openSheet(); });
+
+function parseHash(){ const m=(location.hash||'').match(/^#(pv\/)?(free|prem|auto)\/(\w+)$/); if(!m) return {pv:false,t:'free',i:0};
+  const i=TRACKS[m[2]].states.findIndex(s=>s.id===m[3]); return {pv:!!m[1],t:m[2],i:Math.max(0,i)}; }
+window.addEventListener('hashchange',()=>{ const r=parseHash(); if(r.t!==track||r.i!==idx) setTrack(r.t,r.i); if(r.pv&&!pvOn) openPv({fs:false}); else if(!r.pv&&pvOn) closePv(); });
+window.addEventListener('resize',()=>{ segSet($('seg-user'),track==='free'?'free':'prem'); if(track!=='free') segSet($('seg-mode'),track==='auto'?'auto':'manual'); });
+
+/* Preload every frame so switching never flashes */
+Object.values(TRACKS).forEach(t=>t.states.forEach(s=>{ new Image().src=A+s.img+'.png'; }));
+{ const fresh=!location.hash, r=parseHash(); setTrack(r.t,r.i); if(r.pv) openPv({fs:false}); else if(!reduce && fresh) play(); }
+</script>
